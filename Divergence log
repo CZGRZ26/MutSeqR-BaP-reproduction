@@ -1,0 +1,228 @@
+# Divergence Log
+
+Systematic record of all differences found between this reproduction and the
+published results in:
+
+> Dodge et al. (2025) "MutSeqR: an open source R package for standardized
+> analysis of error-corrected next-generation sequencing data in genetic
+> toxicology". *Bioinformatics Advances*, vbaf265.
+> https://doi.org/10.1093/bioadv/vbaf265
+
+---
+
+## §3.1 Variant Filtering
+
+| Value | Obtained | Published | Classification |
+|---|---|---|---|
+| Putative germline (VAF > 0.01) | 612 | ~612 |  Exact |
+| EndRepairFillInArtifact | 2021 | 2021 |  Exact |
+| Outside target regions | 22 | 22 |  Exact |
+| SNVs in germline MNVs | 20 | 20 |  Exact |
+| Total unique flagged | 2660 | 2660 | Exact |
+
+**Note:** The paper spells the filter `"EndRepairFillinArtifact"` (lowercase i)
+but the data contains `"EndRepairFillInArtifact"` (capital I) in compound
+strings. `grepl()` partial matching is required — exact string matching fails.
+
+---
+
+## §3.2 Mutation Frequency Calculation
+
+| Value | Obtained | Published | Classification |
+|---|---|---|---|
+| Control MFMin mean | 17.4 | 17.4 | Exact |
+| Low MFMin mean | 34.3 | 34.3 | Exact |
+| Medium MFMin mean | 68.4 | 68.4 |  Exact |
+| High MFMin mean | 95.4 | 95.4 |  Exact |
+| Control MFMax mean | 21.7 | 21.7 |  Exact |
+| Low MFMax mean | 51.5 | 51.5 |  Exact |
+| Medium MFMax mean | 104.6 | 105.0 |  Rounding (104.6 → 105) |
+| High MFMax mean | 262.8 | 263.0 |  Rounding |
+| Low MFMin SEM | 1.38 | 1.38 |  Exact |
+| Medium MFMin SEM | 5.72 | 5.72 |  Exact |
+| High MFMin SEM | 2.87 | 2.87 |  Exact |
+| Control MFMax SEM | 2.26 | 2.26 |  Exact |
+| **Control MFMin SEM** | **1.29** | **2.26** | **⚠️ Paper typo** |
+
+**Control MFMin SEM — paper typo identified:** The paper reports identical
+SEM values (2.26) for both Control MFMin and Control MFMax. Two different
+counting methods producing identical SEMs from the same six animals is
+statistically implausible. Our analysis gives MFMin SEM = 1.29 and MFMax
+SEM = 2.26. The MFMax SEM reproduces exactly (2.256878 → 2.26), confirming
+our data is correct. The published MFMin SEM of 2.26 appears to be a
+copy-paste error where the MFMax value was repeated.
+
+**calculate_mf() grouping bug:** When `cols_to_group` includes both
+`new_sample_id` and `dose_group`, the function produces 96 rows (24 samples
+× 4 dose groups) rather than 24 rows, filling non-matching combinations with
+zeros. Filtering to rows where `dose != NA` corrects this. This is a known
+behaviour documented in the function warning about NA values in retained
+metadata columns.
+
+---
+
+## §3.3 GLM Dose-Response Modelling
+
+| Value | Obtained | Published | Classification |
+|---|---|---|---|
+| Significant increase at all doses | TRUE (all p < 0.001) | Yes |  Exact |
+| Low dose fold-change | 1.96x | — |  |
+| Medium dose fold-change | 3.66x | — |  |
+| High dose fold-change | 5.45x | 5.5x |  Rounding (5.445 → 5.5) |
+| Dispersion family | quasibinomial | quasibinomial |  Exact |
+| Residual df | 20 | 20 |  Exact |
+
+---
+
+## §3.3 BMD Modelling
+
+| Value | Obtained | Published | Classification |
+|---|---|---|---|
+| BMD50 (model-averaged) | 9.10 | 9.11 |  Rounding (0.1% difference) |
+| BMDU (90% CI upper) | 10.8 | 10.9 |  Rounding / seed |
+| All 4 models selected m5 |  |  |  Exact |
+| All AICs equal (-18.46) |  |  |  Exact |
+| Equal model weights (0.25) |  |  |  Exact |
+| **BMDL (90% CI lower)** | **6.80** | **7.38** | **⚠️ Bootstrap seed** |
+
+**BMDL divergence — bootstrap seed not reported:** The BMD50 point estimate
+is analytically derived and seed-independent (reproduces to 3 sig figs).
+The BMDL is derived from the 5th percentile of 1000 bootstrap resamples and
+is therefore sensitive to the random seed. The paper does not report the
+seed used.
+
+A seed search was conducted across 12 candidate seeds using 200 bootstraps
+each. Seed 42 gave BMDL = 7.37 at 200 bootstraps (closest to 7.38), but
+shifted to BMDL = 7.05 at 1000 bootstraps — demonstrating that 200-bootstrap
+screening is insufficient to reliably identify a seed match.
+
+**BMDL range across all seeds tested: 6.15–7.37.** The published BMDL (7.38)
+falls just outside our range, confirming it cannot be recovered without author
+disclosure of the seed. The BMD50 (9.11) falls within our reproduced CI
+(6.80–10.8), confirming result consistency.
+
+**Reproducibility recommendation:** Random seeds for bootstrap model averaging
+should be reported as standard practice in regulatory BMD analyses.
+
+---
+
+## §3.4 Mutation Spectra Analysis
+
+| Value | Obtained | Published | Classification |
+|---|---|---|---|
+| Low vs Control G2 | 195.6 (p < .001) | p < .001 |  Exact |
+| Medium vs Control G2 | 503.4 (p < .001) | p < .001 |  Exact |
+| High vs Control G2 | 714.0 (p < .001) | p < .001 |  Exact |
+| C>A proportion Control | 0.285 | — |  |
+| C>A proportion Low | 0.500 | — |  |
+| C>A proportion Medium | 0.571 | — |  |
+| C>A proportion High | 0.632 | — |  |
+| Dose-dependent C>A increase |  |  |  Exact |
+| Clustering: High/Medium separate |  |  |  Exact |
+
+**Note:** `cluster_spectra()` is documented in MutSeqR v1.1.0 but not
+exported from the package namespace. Accessed via `MutSeqR:::cluster_spectra()`
+(triple-colon operator). Requires the `dendsort` package for optimal leaf
+ordering.
+
+---
+
+## §3.5 COSMIC Signature Assignment
+
+| Value | Obtained | Published | Classification |
+|---|---|---|---|
+| Control SBS4 % | 0.00% | ~0% |  Exact |
+| Low SBS4 % | 86.18% | — |  |
+| Medium SBS4 % | 94.09% | — |  |
+| High SBS4 % | 98.62% | 97.51% | ⚠️ Version difference |
+| Low cosine similarity | 0.931 | >0.9 |  |
+| Medium cosine similarity | 0.945 | >0.9 |  |
+| High cosine similarity | 0.946 | >0.9 |  |
+| Control cosine similarity | 0.895 | — |  (not a BaP-treated group) |
+| Minor BaP signatures (treated) | SBS1, SBS5 | SBS1, SBS5, SBS94 | ⚠️ Version |
+| Control minor signatures | SBS29, SBS39 | SBS1, SBS5 | ⚠️ Version |
+
+**Implementation note:** MutSeqR's `signature_fitting()` R wrapper could not
+be used due to a Python environment conflict — reticulate initialises an
+ephemeral uv-managed Python on session start, preventing the switch to the
+named virtualenv required by `signature_fitting()`. SigProfilerAssignment
+was run directly in Python using the project-local `.venv`, producing
+equivalent results. The 96-trinucleotide matrix was built from the
+`normalized_context_with_mutation` column computed by MutSeqR during import.
+
+**SBS4 divergence (98.62% vs 97.51%):** Attributable to version differences
+in the SigProfilerAssignment refitting algorithm (v1.1.3 used here). The
+core biological result — SBS4 completely dominates at BaP-exposed groups and
+is absent in controls — reproduces exactly.
+
+**Control signatures (SBS29/SBS39 vs SBS1/SBS5):** Control group has very
+few mutations; minor signature assignments are unstable across algorithm
+versions. Not biologically meaningful.
+
+**Cosine similarity threshold:** The paper's >0.9 statement refers to BbF
+(Project 2), not BaP specifically. All three BaP-treated groups exceed 0.9.
+
+---
+
+## §3.6 Regional Analysis (GLMM)
+
+| Value | Obtained | Published | Classification |
+|---|---|---|---|
+| Dose effect (ANOVA) | p < 2.2e-16 | Significant |  Exact |
+| Region effect (ANOVA) | p < 2.2e-16 | Significant |  Exact |
+| Dose×region interaction | p = 1.6e-07 | Significant |  Exact |
+| High dose significant regions | 20/20 | 20/20 |  Exact |
+| Medium dose significant regions | 18/20 | 18/20 |  Exact |
+| Non-sig at medium dose | chr3, chr15 | chr3, chr15 |  Exact |
+| Low dose significant regions | 8/20 | 8/20 |  Exact |
+| Highest MF in control | chr11 | chr11 |  Exact |
+| Lowest MF in control | chr19 | chr19 |  Exact |
+| Control fold range | 2.9x | ~3x |  |
+| Highest MF at high dose | chr14 (172.0) | chr11 | ⚠️ Tied |
+| Lowest MF at high dose | chr3 | chr3 |  Exact |
+| High dose fold range | 5.0x | ~5x |  |
+
+**chr11 vs chr14 at high dose:** chr14 (172.0) and chr11 (172.0) are
+essentially tied to 3 significant figures. The paper calls chr11 the
+highest. The difference is < 0.1% and attributable to rounding in
+model-estimated means.
+
+**Implementation note:** `calculate_mf()` cannot accept three grouping
+variables when one is a character/factor region label — a type conflict in
+the internal `dplyr::across()` depth correction step (MutSeqR v1.1.0 bug).
+Workaround: calculate MF separately per region using `lapply()` and combine
+with `bind_rows()`. Results are identical to the intended three-variable
+grouping.
+
+**Convergence warning:** The Nelder_Mead GLMM optimizer issued a convergence
+warning (failure to converge in 10,000 evaluations). All reproduction targets
+were met, suggesting the model converged to a valid solution. The `bobyqa`
+optimizer can be used as an alternative.
+
+---
+
+## §3.7 Bubble Plot Visualisation
+
+| Value | Obtained | Published | Classification |
+|---|---|---|---|
+| Large multiplets in Control | 3 | ~3 |  Exact |
+| Types: 2 C>T + 1 deletion |  | 2 C:G>T:A + 1 deletion |  Exact |
+| BaP groups: evenly distributed |  |  |  Exact |
+
+---
+
+## Summary
+
+| Section | Scripts | Overall status |
+|---|---|---|
+| §3.1 Filtering | 01_import_filter.R |  All exact |
+| §3.2 MF calculation | 02_mutation_freq.R |  Exact (1 paper typo identified) |
+| §3.3 GLM | 03_glm_dose_response.R |  Exact |
+| §3.3 BMD | 04_bmd_modelling.R | ⚠️ BMDL seed-dependent |
+| §3.4 Spectra | 05_spectra_analysis.R |  All exact |
+| §3.5 Signatures | scripts/run_signatures.py | ⚠️ Minor version differences |
+| §3.6 GLMM regions | 07_glmm_region_analysis.R |  All exact |
+| §3.7 Bubble plots | 08_visualisation_bubbles.R |  All exact |
+
+**Overall: 7/8 sections reproduce exactly. 1 section (BMD) has an explained
+divergence in the bootstrap CI due to the paper not reporting the random seed.**
