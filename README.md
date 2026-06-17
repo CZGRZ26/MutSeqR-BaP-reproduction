@@ -51,7 +51,7 @@ differences found, their explanations, and reproducibility recommendations.
 
 ```
 .
-├── R/                          # R analysis scripts
+├── scripts/                          # R analysis scripts
 │   ├── 01_import_filter.R      # §3.1 Variant filtering
 │   ├── 02_mutation_freq.R      # §3.2 Mutation frequency calculation
 │   ├── 03_glm_dose_response.R  # §3.3 GLM dose-response modelling
@@ -59,7 +59,6 @@ differences found, their explanations, and reproducibility recommendations.
 │   ├── 05_spectra_analysis.R   # §3.4 Mutation spectra + clustering
 │   ├── 07_glmm_region_analysis.R # §3.6 GLMM regional analysis
 │   └── 08_visualisation_bubbles.R # §3.7 Bubble plot visualisation
-├── scripts/
 │   └── run_signatures.py       # §3.5 COSMIC signature fitting (Python)
 ├── outputs/                    # Generated outputs (not committed)
 │   ├── figures/                # Saved plots
